@@ -1,10 +1,9 @@
 package com.recursive_pineapple.matter_manipulator.mixin.mixins.early;
 
+import com.recursive_pineapple.matter_manipulator.MMMod;
 import com.recursive_pineapple.matter_manipulator.common.items.manipulator.ItemMatterManipulator;
 import com.recursive_pineapple.matter_manipulator.common.items.manipulator.MMState;
 import com.recursive_pineapple.matter_manipulator.common.networking.Messages;
-import cpw.mods.fml.common.Loader;
-import cpw.mods.fml.relauncher.ReflectionHelper;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.inventory.GuiContainer;
 import net.minecraft.entity.player.EntityPlayer;
@@ -12,32 +11,13 @@ import net.minecraft.inventory.Slot;
 import net.minecraft.item.ItemStack;
 import org.lwjgl.input.Keyboard;
 import org.spongepowered.asm.mixin.Mixin;
+import org.spongepowered.asm.mixin.gen.Invoker;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
-import java.lang.reflect.Field;
-import java.lang.reflect.Method;
-
 @Mixin(GuiContainer.class)
 public abstract class MixinGuiContainer_PickBlock {
-
-    private static final Field theSlot = ReflectionHelper
-        .findField(GuiContainer.class, "theSlot", "field_147006_u", "u");
-    private static boolean neiLoaded = false;
-    private static Method getStackMouseOver = null;
-    private static Method isNEIHidden = null;
-
-    static {
-        try {
-            neiLoaded = Loader.isModLoaded("NotEnoughItems");
-            if (neiLoaded) {
-                isNEIHidden = Class.forName("codechicken.nei.NEIClientConfig").getDeclaredMethod("isHidden");
-                getStackMouseOver = Class.forName("codechicken.nei.guihook.GuiContainerManager")
-                    .getDeclaredMethod("getStackMouseOver", GuiContainer.class);
-            }
-        } catch (Exception ignored) {}
-    }
 
     // Middle Click on an item with the MM picked up switches to that block.
     @Inject(method = "mouseClicked(III)V", at = @At("HEAD"), cancellable = true)
@@ -62,7 +42,7 @@ public abstract class MixinGuiContainer_PickBlock {
         // get the hovered stack from the active container
         try {
             // try regular container
-            Slot hoveredSlot = (Slot) theSlot.get((GuiContainer) (Object) this);
+            Slot hoveredSlot = mm$invokeGetSlotAtPosition(mouseX, mouseY);
 
             // get the stack
             if (hoveredSlot != null) {
@@ -70,8 +50,8 @@ public abstract class MixinGuiContainer_PickBlock {
             }
 
             // try NEI
-            if (hoveredStack == null && isNEIHidden != null && !(boolean) isNEIHidden.invoke(null) && getStackMouseOver != null) {
-                hoveredStack = (ItemStack) (getStackMouseOver.invoke(null, (GuiContainer) (Object) this));
+            if (hoveredStack == null && MMMod.proxy.neiCompat != null && !MMMod.proxy.neiCompat.isNEIHidden()) {
+                hoveredStack = MMMod.proxy.neiCompat.getStackMouseOver( (GuiContainer) (Object) this);
             }
         } catch (RuntimeException e) {
             throw e;
@@ -88,4 +68,7 @@ public abstract class MixinGuiContainer_PickBlock {
 
         Messages.MMBPressedInGUI.sendToServer(new Messages.CursorItemStackData(hoveredStack, isSneak));
     }
+
+    @Invoker("getSlotAtPosition")
+    protected abstract Slot mm$invokeGetSlotAtPosition(int x, int y);
 }

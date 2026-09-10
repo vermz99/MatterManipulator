@@ -832,9 +832,7 @@ public class ItemMatterManipulator extends Item implements ISpecialElectricItem,
     }
 
     static public void onMMBPressedInGUI(EntityPlayer player, ItemStack stack, MMState state, final boolean isSneaking, ItemStack hoveredStack) {
-        BlockSpec block = new BlockSpec();
-        if (hoveredStack != null) // set to air otherwise
-            block.setObject(hoveredStack);
+        BlockSpec block = BlockSpec.fromStack(null, hoveredStack);
 
         if (state.config.placeMode == PlaceMode.GEOMETRY) {
             onPickBlock(player.getEntityWorld(), player, stack, state, null, isSneaking, block);
